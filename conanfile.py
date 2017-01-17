@@ -6,7 +6,7 @@ class PcapConan(ConanFile):
     url="http://github.com/uilianries/conan-libpcap"
     settings = "os", "compiler", "build_type", "arch"
     generators = "cmake", "txt"
-	description = "Pcap library package for conan.io"
+    description = "Pcap library package for conan.io"
     license = "MIT"
 
     def source(self):
