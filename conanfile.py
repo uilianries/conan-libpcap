@@ -6,6 +6,8 @@ class PcapConan(ConanFile):
     url="http://github.com/uilianries/conan-libpcap"
     settings = "os", "compiler", "build_type", "arch"
     generators = "cmake", "txt"
+	description = "Pcap library package for conan.io"
+    license = "MIT"
 
     def source(self):
         self.run("git clone --branch libpcap-1.8 https://github.com/the-tcpdump-group/libpcap.git")
