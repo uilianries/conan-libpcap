@@ -24,7 +24,7 @@ class PcapConan(ConanFile):
 
     def package(self):
         self.copy("*.h", dst="include", src="libpcap")
-        self.copy("*.a", dst="lib")
+        self.copy("*.a", dst="lib", src="libpcap")
 
     def package_info(self):
         self.cpp_info.libs = ["pcap"]
