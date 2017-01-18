@@ -1,4 +1,4 @@
-from conans import ConanFile, CMake
+from conans import ConanFile
 
 class PcapConan(ConanFile):
     name = "libpcap"
@@ -13,14 +13,13 @@ class PcapConan(ConanFile):
         self.run("git clone --branch libpcap-1.8 https://github.com/the-tcpdump-group/libpcap.git")
 
     def build(self):
-        cmake = CMake(self.settings)
         options_pcap = "-DBUILD_SHARED_LIBS=OFF"
         if self.settings.os == "Windows":
             options_pcap += " -DUSE_STATIC_RT=OFF"
-        conf_command = 'cd libpcap && cmake . %s %s' % (cmake.command_line, options_pcap)
+        conf_command = 'cd libpcap && cmake . %s' % options_pcap
         self.output.warn(conf_command)
         self.run(conf_command)
-        self.run("cd libpcap && cmake --build . %s" % cmake.build_config)
+        self.run("cd libpcap && cmake --build ." )
 
     def package(self):
         self.copy("*.h", dst="include", src="libpcap")
