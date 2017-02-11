@@ -27,3 +27,12 @@
 *.exe
 *.out
 *.app
+
+# Cache
+__pycache__/*
+test_package/__pycache__/*
+test_package/build/*
+build/*
+
+# IDE
+.idea/*

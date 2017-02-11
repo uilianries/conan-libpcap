@@ -1,29 +1,36 @@
+"""Pcap library package for conan.io
+
+"""
+from tempfile import mkdtemp
 from conans import ConanFile
 
+
 class PcapConan(ConanFile):
+    """Build libpcap
+
+    This package is supported in linux
+    """
     name = "libpcap"
     version = "1.8"
-    url="http://github.com/uilianries/conan-libpcap"
-    settings = "os", "compiler", "build_type", "arch"
+    url = "http://github.com/uilianries/conan-libpcap"
+    author = "Uilian Ries <uilianries@gmail.com>"
+    settings = {"os": ["Linux"]}
     generators = "cmake", "txt"
     description = "Pcap library package for conan.io"
-    license = "MIT"
+    license = "https://raw.githubusercontent.com/the-tcpdump-group/libpcap/master/LICENSE"
+    install_dir = mkdtemp()
 
     def source(self):
-        self.run("git clone --branch libpcap-1.8 https://github.com/the-tcpdump-group/libpcap.git")
+        self.run(
+            "git clone --branch libpcap-%s https://github.com/the-tcpdump-group/libpcap.git"
+            % self.version)
 
     def build(self):
-        options_pcap = "-DBUILD_SHARED_LIBS=OFF"
-        if self.settings.os == "Windows":
-            options_pcap += " -DUSE_STATIC_RT=OFF"
-        conf_command = 'cd libpcap && cmake . %s' % options_pcap
-        self.output.warn(conf_command)
-        self.run(conf_command)
-        self.run("cd libpcap && cmake --build ." )
+        self.run("cd libpcap && ./configure --prefix=%s && make install" %
+                 self.install_dir)
 
     def package(self):
-        self.copy("*.h", dst="include", src="libpcap")
-        self.copy("*.a", dst="lib", src="libpcap")
+        self.copy("*", src=self.install_dir)
 
     def package_info(self):
         self.cpp_info.libs = ["pcap"]
