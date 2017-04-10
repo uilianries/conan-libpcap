@@ -5,6 +5,7 @@ from os.path import join
 from tempfile import mkdtemp
 from conans import ConanFile
 from conans import AutoToolsBuildEnvironment
+from conans.tools import SystemPackageTool
 from conans.tools import download
 from conans.tools import unzip
 from conans.tools import chdir
@@ -32,6 +33,10 @@ class LibPcapConan(ConanFile):
     license = "BSD"
     default_options = "shared=False", "enable_dbus=False", "enable_bluetooth=False", "enable_usb=False", "enable_packet_ring=False"
     install_dir = mkdtemp(suffix=name)
+
+    def system_requirements(self):
+        package_tool = SystemPackageTool()
+        package_tool.install(packages="bison flex", update=True)
 
     def source(self):
         tar_name = "%s-%s.tar.gz" % (self.name, self.version)

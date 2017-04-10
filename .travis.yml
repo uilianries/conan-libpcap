@@ -6,7 +6,7 @@ language: python
 env:
   global:
     - CONAN_UPLOAD=1
-    - CONAN_REFERENCE="libpcap/1.8"
+    - CONAN_REFERENCE="libpcap/1.8.1"
     - CONAN_USERNAME="uilianries"
     - CONAN_CHANNEL="ci"
     - CONAN_TOTAL_PAGES=1
@@ -16,14 +16,14 @@ env:
   matrix:
     - CONAN_GCC_VERSIONS=4.6 CONAN_USE_DOCKER=1
     - CONAN_GCC_VERSIONS=4.8 CONAN_USE_DOCKER=1
-    - CONAN_GCC_VERSIONS=4.9 CONAN_USE_DOCKER=1 
+    - CONAN_GCC_VERSIONS=4.9 CONAN_USE_DOCKER=1
     - CONAN_GCC_VERSIONS=5.2 CONAN_USE_DOCKER=1
     - CONAN_GCC_VERSIONS=5.3 CONAN_USE_DOCKER=1
     - CONAN_GCC_VERSIONS=5.4 CONAN_USE_DOCKER=1
+    - CONAN_GCC_VERSIONS=6.2 CONAN_USE_DOCKER=1
+    - CONAN_GCC_VERSIONS=6.3 CONAN_USE_DOCKER=1
 
 install:
-  - sudo apt-get update -qq
-  - sudo apt-get install -y bison flex
   - ./.travis/install.sh
 script:
   - ./.travis/run.sh
