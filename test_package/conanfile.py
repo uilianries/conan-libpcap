@@ -1,35 +1,34 @@
 """Validation for Pcap library package
 
 """
-import os
-from conans.model.conan_file import ConanFile
+from os import getenv
 from conans import CMake
-
-USERNAME = os.getenv("CONAN_USERNAME", "uilianries")
-CHANNEL = os.getenv("CONAN_CHANNEL", "testing")
+from conans import ConanFile
 
 
 class TestPcapConan(ConanFile):
     """Build test with libpcap package
-
-    This test list all network devices
     """
-    name = "TestPcap"
-    version = "0.1"
+    target = "libpcap"
+    name = "%s-test" % target
+    version = "1.8.1"
+    author = "Uilian Ries <uilianries@gmail.com>"
+    license = "BSD"
     settings = "os", "compiler", "arch", "build_type"
     generators = "cmake"
-    requires = "libpcap/1.8@%s/%s" % (USERNAME, CHANNEL)
+    channel = getenv("CONAN_CHANNEL", "testing")
+    user = getenv("CONAN_USERNAME", "uilianries")
+    requires = "%s/%s@%s/%s" % (target, version, user, channel)
 
     def build(self):
         cmake = CMake(self.settings)
-        self.run('cmake %s %s' %
-                 (self.conanfile_directory, cmake.command_line))
-        self.run("cmake --build . %s" % cmake.build_config)
+        cmake.configure(self, source_dir=self.conanfile_directory, build_dir="./")
+        cmake.build(self)
 
     def imports(self):
-        self.copy(pattern="*.a", dst="lib", src="lib")
-        self.copy(pattern="*so", dst="bin", src="lib")
-        self.copy(pattern="*", dst="bin", src="bin")
+        self.copy(pattern="*.so*", dst="bin", src="lib")
 
     def test(self):
-        self.run("cmake --build . --target test")
+        cmake = CMake(self.settings)
+        cmake.configure(self, source_dir=self.conanfile_directory, build_dir="./")
+        cmake.build(self, target="test")
