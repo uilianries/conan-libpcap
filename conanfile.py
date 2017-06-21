@@ -31,10 +31,10 @@ class LibPcapConan(ConanFile):
     author = "Uilian Ries <uilianries@gmail.com>"
     description = "An API for capturing network traffic"
     license = "BSD"
-    default_options = "shared=False", "enable_dbus=False", "enable_bluetooth=False", "enable_usb=False", "enable_packet_ring=False"
+    default_options = "shared=True", "enable_dbus=False", "enable_bluetooth=False", "enable_usb=False", "enable_packet_ring=False"
     install_dir = mkdtemp(suffix=name)
 
-    def system_requirements(self):
+    def build_requirements(self):
         package_tool = SystemPackageTool()
         package_tool.install(packages="bison flex", update=True)
 
