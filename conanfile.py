@@ -31,12 +31,26 @@ class LibPcapConan(ConanFile):
     author = "Uilian Ries <uilianries@gmail.com>"
     description = "An API for capturing network traffic"
     license = "BSD"
-    default_options = "shared=True", "enable_dbus=False", "enable_bluetooth=False", "enable_usb=False", "enable_packet_ring=False"
+    default_options = "shared=True", "enable_dbus=True", "enable_bluetooth=True", "enable_usb=True", "enable_packet_ring=True"
+    libpcap_dir = "%s-%s-%s" % (name, name, version)
     install_dir = mkdtemp(suffix=name)
 
     def build_requirements(self):
-        package_tool = SystemPackageTool()
-        package_tool.install(packages="bison flex", update=True)
+        if self.settings.os == "Linux":
+            package_list = ["bison", "flex"]
+            if self.options["enable_dbus"]:
+                package_list.append("libdbus-glib-1-dev")
+            if self.options["enable_bluetooth"]:
+                package_list.append("libbluetooth-dev")
+            if self.options["enable_usb"]:
+                package_list.append("libusb-1.0-0-dev")
+            if self.options["enable_packet_ring"]:
+                package_list.append("libnl-genl-3-dev")
+            package_tool = SystemPackageTool()
+            package_tool.install(packages=" ".join(package_list))
+
+    def configure(self):
+        del self.settings.compiler.libcxx
 
     def source(self):
         tar_name = "%s-%s.tar.gz" % (self.name, self.version)
@@ -47,24 +61,34 @@ class LibPcapConan(ConanFile):
         unlink(tar_name)
 
     def build(self):
-        env_build = AutoToolsBuildEnvironment(self)
-        env_build.fpic = self.options.shared
-        with environment_append(env_build.vars):
-            with chdir("%s-%s-%s" % (self.name, self.name, self.version)):
-                options = "--enable-shared" if self.options.shared else "--disable-shared"
-                options += " --enable-dbus" if self.options.enable_dbus else " --disable-dbus"
-                options += " --enable-bluetooth" if self.options.enable_bluetooth else " --disable-bluetooth"
-                options += " --enable-usb" if self.options.enable_usb else " --disable-usb"
-                options += " --enable-packet-ring" if self.options.enable_packet_ring else " --disable-packet_ring"
-                self.run("./configure --prefix=%s %s" % (self.install_dir, options))
-                self.run("make")
-                self.run("make install")
+        with chdir(self.libpcap_dir):
+            env_build = AutoToolsBuildEnvironment(self)
+            configure_args = ["--prefix=%s" % self.install_dir]
+            configure_args.append("--enable-shared" if self.options.shared else "--disable-shared")
+            configure_args.append("--enable-dbus" if self.options.enable_dbus else "--disable-dbus")
+            configure_args.append("--enable-bluetooth" if self.options.enable_bluetooth else "--disable-bluetooth")
+            configure_args.append("--enable-usb" if self.options.enable_usb else "--disable-usb")
+            configure_args.append("--enable-packet-ring" if self.options.enable_packet_ring else "--disable-packet_ring")
+            env_build.fpic = True
+            env_build.configure(configure_dir="./", args=configure_args, build=False, host=False, target=False)
+            env_build.make(args=["all"])
+            env_build.make(args=["install"])
 
     def package(self):
-        self.copy(pattern="*.h", dst="include", src=join(self.install_dir, "include"))
-        self.copy(pattern="*.a", dst="lib", src=join(self.install_dir, "lib"), keep_path=False)
-        self.copy(pattern="*.so*", dst="lib", src=join(self.install_dir, "lib"), keep_path=False)
+        self.copy("LICENSE", src=self.libpcap_dir, dst=".")
         self.copy(pattern="*", dst="bin", src=join(self.install_dir, "bin"))
+        self.copy(pattern="*.h", dst="include", src=join(self.install_dir, "include"))
+        lib_ext = "so*" if self.options["shared"] else "a"
+        self.copy(pattern="*.%s" % lib_ext, dst="lib", src=join(self.install_dir, "lib"), keep_path=False)
 
     def package_info(self):
         self.cpp_info.libs = ["pcap"]
+        if self.settings.os == "Linux":
+            if self.options["enable_dbus"]:
+                self.cpp_info.libs.append("dbus-glib-1")
+            if self.options["enable_bluetooth"]:
+                self.cpp_info.libs.append("bluetooth")
+            if self.options["enable_usb"]:
+                self.cpp_info.libs.append("usb-1.0")
+            if self.options["enable_packet_ring"]:
+                self.cpp_info.libs.append("nl-genl-3")
