@@ -1,10 +1,12 @@
 """Conan.io recipe for pcap library
 """
+import os
 from os import unlink
 from os.path import join
 from tempfile import mkdtemp
 from platform import machine
 from conans import ConanFile
+from conans.errors import ConanException
 from conans import AutoToolsBuildEnvironment
 from conans.tools import SystemPackageTool
 from conans.tools import download
@@ -25,13 +27,14 @@ class LibPcapConan(ConanFile):
         "enable_dbus": [True, False],
         "enable_bluetooth": [True, False],
         "enable_usb": [True, False],
-        "enable_packet_ring": [True, False]
+        "enable_packet_ring": [True, False],
+        "disable_universal": [True, False]
     }
     url = "http://github.com/uilianries/conan-libpcap"
     author = "Uilian Ries <uilianries@gmail.com>"
     description = "An API for capturing network traffic"
     license = "https://github.com/the-tcpdump-group/libpcap/blob/master/LICENSE"
-    default_options = "shared=True", "enable_dbus=True", "enable_bluetooth=True", "enable_usb=True", "enable_packet_ring=True"
+    default_options = "shared=True", "enable_dbus=True", "enable_bluetooth=True", "enable_usb=True", "enable_packet_ring=True", "disable_universal=False"
     libpcap_dir = "%s-%s-%s" % (name, name, version)
     install_dir = mkdtemp(suffix=name)
 
@@ -60,6 +63,8 @@ class LibPcapConan(ConanFile):
                 package_tool.install(packages=" ".join(package_list))
 
     def configure(self):
+        if self.settings.os == "Windows":
+            raise ConanException("For Windows use WinPcap/4.1.2@RoliSoft/stable")
         del self.settings.compiler.libcxx
 
     def source(self):
@@ -74,11 +79,20 @@ class LibPcapConan(ConanFile):
         with chdir(self.libpcap_dir):
             env_build = AutoToolsBuildEnvironment(self)
             configure_args = ["--prefix=%s" % self.install_dir]
-            configure_args.append("--enable-shared" if self.options.shared else "--disable-shared")
-            configure_args.append("--enable-dbus" if self.options.enable_dbus else "--disable-dbus")
-            configure_args.append("--enable-bluetooth" if self.options.enable_bluetooth else "--disable-bluetooth")
-            configure_args.append("--enable-usb" if self.options.enable_usb else "--disable-usb")
-            configure_args.append("--enable-packet-ring" if self.options.enable_packet_ring else "--disable-packet_ring")
+            if not self.options.shared:
+                configure_args.append("--disable-shared")
+            if self.options.disable_universal:
+                configure_args.append("--disable-universal")
+            if not self.options.enable_dbus:
+                configure_args.append("--disable-dbus")
+            if not self.options.enable_bluetooth:
+                configure_args.append("--disable-bluetooth")
+            if not self.options.enable_usb:
+                configure_args.append("--disable-usb")
+            if not self.options.enable_packet_ring:
+                configure_args.append("--disable-packet-ring")
+            if self.settings.os == "Macos" and self.settings.arch == "x86":
+                configure_args.append("--with-pcap=null")
             env_build.fpic = True
             env_build.configure(args=configure_args)
             env_build.make(args=["all"])
@@ -86,9 +100,9 @@ class LibPcapConan(ConanFile):
 
     def package(self):
         self.copy("LICENSE", src=self.libpcap_dir, dst=".")
-        self.copy(pattern="*", dst="bin", src=join(self.install_dir, "bin"))
         self.copy(pattern="*.h", dst="include", src=join(self.install_dir, "include"))
         self.copy(pattern="*.so*", dst="lib", src=join(self.install_dir, "lib"), keep_path=False)
+        self.copy(pattern="*.dylib", dst="lib", src=join(self.install_dir, "lib"), keep_path=False)
         self.copy(pattern="*.a", dst="lib", src=join(self.install_dir, "lib"), keep_path=False)
 
     def package_info(self):
