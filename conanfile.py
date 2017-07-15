@@ -1,6 +1,5 @@
 """Conan.io recipe for pcap library
 """
-import os
 from os import unlink
 from os.path import join
 from tempfile import mkdtemp
@@ -34,7 +33,7 @@ class LibPcapConan(ConanFile):
     author = "Uilian Ries <uilianries@gmail.com>"
     description = "An API for capturing network traffic"
     license = "https://github.com/the-tcpdump-group/libpcap/blob/master/LICENSE"
-    default_options = "shared=True", "enable_dbus=True", "enable_bluetooth=True", "enable_usb=True", "enable_packet_ring=True", "disable_universal=False"
+    default_options = "shared=True", "enable_dbus=False", "enable_bluetooth=False", "enable_usb=False", "enable_packet_ring=False", "disable_universal=False"
     libpcap_dir = "%s-%s-%s" % (name, name, version)
     install_dir = mkdtemp(suffix=name)
 
@@ -79,18 +78,13 @@ class LibPcapConan(ConanFile):
         with chdir(self.libpcap_dir):
             env_build = AutoToolsBuildEnvironment(self)
             configure_args = ["--prefix=%s" % self.install_dir]
-            if not self.options.shared:
-                configure_args.append("--disable-shared")
-            if self.options.disable_universal:
-                configure_args.append("--disable-universal")
-            if not self.options.enable_dbus:
-                configure_args.append("--disable-dbus")
-            if not self.options.enable_bluetooth:
-                configure_args.append("--disable-bluetooth")
-            if not self.options.enable_usb:
-                configure_args.append("--disable-usb")
-            if not self.options.enable_packet_ring:
-                configure_args.append("--disable-packet-ring")
+            configure_args.append("--enable-shared" if self.options.shared else "--disable-shared")
+            configure_args.append("--disable-universal" if not self.options.disable_universal else "")
+            configure_args.append("--enable-dbus" if self.options.enable_dbus else "--disable-dbus")
+            configure_args.append("--enable-bluetooth" if self.options.enable_bluetooth else "--disable-bluetooth")
+            configure_args.append("--enable-usb" if self.options.enable_usb else "--disable-usb")
+            configure_args.append("--enable-packet-ring" if self.options.enable_packet_ring else "--disable-packet-ring")
+            # Cross compile x86_64 to x86 needs --with-pcap
             if self.settings.os == "Macos" and self.settings.arch == "x86":
                 configure_args.append("--with-pcap=null")
             env_build.fpic = True
