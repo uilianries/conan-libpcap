@@ -3,13 +3,13 @@
 from os import unlink
 from os.path import join
 from tempfile import mkdtemp
+from platform import machine
 from conans import ConanFile
 from conans import AutoToolsBuildEnvironment
 from conans.tools import SystemPackageTool
 from conans.tools import download
 from conans.tools import unzip
 from conans.tools import chdir
-from conans.tools import environment_append
 from conans.tools import check_md5
 
 
@@ -30,24 +30,34 @@ class LibPcapConan(ConanFile):
     url = "http://github.com/uilianries/conan-libpcap"
     author = "Uilian Ries <uilianries@gmail.com>"
     description = "An API for capturing network traffic"
-    license = "BSD"
+    license = "https://github.com/the-tcpdump-group/libpcap/blob/master/LICENSE"
     default_options = "shared=True", "enable_dbus=True", "enable_bluetooth=True", "enable_usb=True", "enable_packet_ring=True"
     libpcap_dir = "%s-%s-%s" % (name, name, version)
     install_dir = mkdtemp(suffix=name)
 
     def build_requirements(self):
         if self.settings.os == "Linux":
-            package_list = ["bison", "flex"]
-            if self.options["enable_dbus"]:
-                package_list.append("libdbus-glib-1-dev")
-            if self.options["enable_bluetooth"]:
-                package_list.append("libbluetooth-dev")
-            if self.options["enable_usb"]:
-                package_list.append("libusb-1.0-0-dev")
-            if self.options["enable_packet_ring"]:
-                package_list.append("libnl-genl-3-dev")
             package_tool = SystemPackageTool()
-            package_tool.install(packages=" ".join(package_list))
+            package_tool.install(packages="bison flex")
+
+    def _is_amd64_to_i386(self):
+        return self.settings.arch == "x86" and machine() == "x86_64"
+
+    def system_requirements(self):
+        if self.settings.os == "Linux":
+            arch = ":i386" if self._is_amd64_to_i386() else ""
+            package_list = []
+            if self.options.enable_dbus:
+                package_list.extend(["libdbus-glib-1-dev%s" % arch, "libdbus-1-dev"])
+            if self.options.enable_bluetooth:
+                package_list.append("libbluetooth-dev%s" % arch)
+            if self.options.enable_usb:
+                package_list.append("libusb-1.0-0-dev%s" % arch)
+            if self.options.enable_packet_ring:
+                package_list.append("libnl-genl-3-dev%s" % arch)
+            if package_list:
+                package_tool = SystemPackageTool()
+                package_tool.install(packages=" ".join(package_list))
 
     def configure(self):
         del self.settings.compiler.libcxx
@@ -70,7 +80,7 @@ class LibPcapConan(ConanFile):
             configure_args.append("--enable-usb" if self.options.enable_usb else "--disable-usb")
             configure_args.append("--enable-packet-ring" if self.options.enable_packet_ring else "--disable-packet_ring")
             env_build.fpic = True
-            env_build.configure(configure_dir="./", args=configure_args, build=False, host=False, target=False)
+            env_build.configure(args=configure_args)
             env_build.make(args=["all"])
             env_build.make(args=["install"])
 
@@ -78,17 +88,19 @@ class LibPcapConan(ConanFile):
         self.copy("LICENSE", src=self.libpcap_dir, dst=".")
         self.copy(pattern="*", dst="bin", src=join(self.install_dir, "bin"))
         self.copy(pattern="*.h", dst="include", src=join(self.install_dir, "include"))
-        lib_ext = "so*" if self.options["shared"] else "a"
-        self.copy(pattern="*.%s" % lib_ext, dst="lib", src=join(self.install_dir, "lib"), keep_path=False)
+        self.copy(pattern="*.so*", dst="lib", src=join(self.install_dir, "lib"), keep_path=False)
+        self.copy(pattern="*.a", dst="lib", src=join(self.install_dir, "lib"), keep_path=False)
 
     def package_info(self):
         self.cpp_info.libs = ["pcap"]
         if self.settings.os == "Linux":
-            if self.options["enable_dbus"]:
+            if self.options.enable_dbus:
                 self.cpp_info.libs.append("dbus-glib-1")
-            if self.options["enable_bluetooth"]:
+                self.cpp_info.libs.append("dbus-1")
+            if self.options.enable_bluetooth:
                 self.cpp_info.libs.append("bluetooth")
-            if self.options["enable_usb"]:
+            if self.options.enable_usb:
                 self.cpp_info.libs.append("usb-1.0")
-            if self.options["enable_packet_ring"]:
+            if self.options.enable_packet_ring:
                 self.cpp_info.libs.append("nl-genl-3")
+                self.cpp_info.libs.append("nl-3")

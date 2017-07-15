@@ -15,8 +15,10 @@ int main(int argc, char **argv)
     bpf_u_int32 maskp = 0;
 
     // device lookup
-    char* dev = pcap_lookupdev(errbuf);
-    assert(dev != NULL);
+    const char* dev = pcap_lookupdev(errbuf);
+    if (dev == NULL) {
+        dev = "lo";
+    }
 
     // use pcap to get net information
     int ret = pcap_lookupnet(dev,&netp,&maskp,errbuf);

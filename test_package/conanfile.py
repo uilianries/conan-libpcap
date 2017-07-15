@@ -10,7 +10,6 @@ class TestPcapConan(ConanFile):
     """Build test with libpcap package
     """
     author = "Uilian Ries <uilianries@gmail.com>"
-    license = "BSD"
     settings = "os", "compiler", "arch", "build_type"
     generators = "cmake"
     channel = getenv("CONAN_CHANNEL", "testing")
