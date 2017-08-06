@@ -1,9 +1,7 @@
 env:
    global:
      - CONAN_REFERENCE: "libpcap/1.8.1"
-     - CONAN_USERNAME: "uilianries"
      - CONAN_CHANNEL: "ci"
-     - CONAN_UPLOAD: "https://api.bintray.com/conan/uilianries/conan"
      - CONAN_STABLE_BRANCH_PATTERN: "release/*"
 
 linux: &linux
