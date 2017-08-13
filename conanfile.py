@@ -1,9 +1,8 @@
 """Conan.io recipe for pcap library
 """
-from os import path
+import os
 from tempfile import mkdtemp
-from conans import AutoToolsBuildEnvironment, tools, ConanFile
-from conans.errors import ConanException
+from conans import AutoToolsBuildEnvironment, tools, ConanFile, CMake
 
 
 class LibPcapConan(ConanFile):
@@ -31,7 +30,7 @@ class LibPcapConan(ConanFile):
 
     def requirements(self):
         if self.options.enable_usb:
-            self.requirements.add("libusb/1.0.21@uilianries/stable")
+            self.requires("libusb/1.0.21@uilianries/stable")
 
     def build_requirements(self):
         if self.settings.os == "Linux":
@@ -57,13 +56,26 @@ class LibPcapConan(ConanFile):
 
     def source(self):
         tools.get("https://github.com/the-tcpdump-group/libpcap/archive/libpcap-%s.tar.gz" % self.version)
+        if self.settings.os == "Windows":
+            url = "http://www.winpcap.org/install/bin/WpdPack_4_1_2.zip"
+            filename = os.path.basename(url)
+            tools.download(url, filename, verify=False)
+            tools.check_sha256(filename, "ea799cf2f26e4afb1892938070fd2b1ca37ce5cf75fec4349247df12b784edbd")
+            tools.unzip(filename)
+            os.unlink(filename)
 
     def configure(self):
-        if self.settings.os == "Windows":
-            raise ConanException("For Windows use WinPcap/4.1.2@RoliSoft/stable")
         del self.settings.compiler.libcxx
 
-    def build(self):
+    def _build_cmake(self):
+        cmake = CMake(self)
+        cmake.definitions["PACKET_DLL_DIR"] = os.path.join(self.build_folder, "WpdPack")
+        cmake.definitions["CMAKE_INSTALL_PREFIX"] = self.install_dir
+        cmake.configure()
+        cmake.build()
+        cmake.install()
+
+    def _build_makefile(self):
         with tools.chdir(self.libpcap_dir):
             env_build = AutoToolsBuildEnvironment(self)
             configure_args = ["--prefix=%s" % self.install_dir]
@@ -81,14 +93,20 @@ class LibPcapConan(ConanFile):
             env_build.make(args=["all"])
             env_build.make(args=["install"])
 
+    def build(self):
+        if self.settings.os == "Windows":
+            self._build_cmake()
+        else:
+            self._build_makefile()
+
     def package(self):
         self.copy("LICENSE", src=self.libpcap_dir, dst=".")
-        self.copy(pattern="*.h", dst="include", src=path.join(self.install_dir, "include"))
+        self.copy(pattern="*.h", dst="include", src=os.path.join(self.install_dir, "include"))
         if self.options.shared:
-            self.copy(pattern="*.so*", dst="lib", src=path.join(self.install_dir, "lib"), keep_path=False)
-            self.copy(pattern="*.dylib", dst="lib", src=path.join(self.install_dir, "lib"), keep_path=False)
+            self.copy(pattern="*.so*", dst="lib", src=os.path.join(self.install_dir, "lib"), keep_path=False)
+            self.copy(pattern="*.dylib", dst="lib", src=os.path.join(self.install_dir, "lib"), keep_path=False)
         else:
-            self.copy(pattern="*.a", dst="lib", src=path.join(self.install_dir, "lib"), keep_path=False)
+            self.copy(pattern="*.a", dst="lib", src=os.path.join(self.install_dir, "lib"), keep_path=False)
 
     def package_info(self):
         self.cpp_info.libs = ["pcap"]
@@ -98,8 +116,6 @@ class LibPcapConan(ConanFile):
                 self.cpp_info.libs.append("dbus-1")
             if self.options.enable_bluetooth:
                 self.cpp_info.libs.append("bluetooth")
-            if self.options.enable_usb:
-                self.cpp_info.libs.append("usb-1.0")
             if self.options.enable_packet_ring:
                 self.cpp_info.libs.append("nl-genl-3")
                 self.cpp_info.libs.append("nl-3")
