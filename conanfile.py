@@ -29,6 +29,10 @@ class LibPcapConan(ConanFile):
     libpcap_dir = "%s-%s-%s" % (name, name, version)
     install_dir = mkdtemp(suffix=name)
 
+    def requirements(self):
+        if self.options.enable_usb:
+            self.requirements.add("libusb/1.0.21@uilianries/stable")
+
     def build_requirements(self):
         if self.settings.os == "Linux":
             package_tool = tools.SystemPackageTool()
@@ -45,8 +49,6 @@ class LibPcapConan(ConanFile):
                 package_list.extend(["libdbus-glib-1-dev%s" % arch, "libdbus-1-dev"])
             if self.options.enable_bluetooth:
                 package_list.append("libbluetooth-dev%s" % arch)
-            if self.options.enable_usb:
-                package_list.append("libusb-1.0-0-dev%s" % arch)
             if self.options.enable_packet_ring:
                 package_list.append("libnl-genl-3-dev%s" % arch)
             if package_list:
