@@ -1,7 +1,6 @@
 env:
    global:
      - CONAN_REFERENCE: "libpcap/1.8.1"
-     - CONAN_CHANNEL: "ci"
      - CONAN_STABLE_BRANCH_PATTERN: "release/*"
 
 linux: &linux

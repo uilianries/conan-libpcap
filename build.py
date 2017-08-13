@@ -1,6 +1,5 @@
 """This script build Conan.io package to multiple platforms."""
 import platform
-from os import getenv
 from copy import copy
 from conan.packager import ConanMultiPackager
 from conan.builds_generator import BuildConf
@@ -8,7 +7,6 @@ from conan.builds_generator import BuildConf
 
 if __name__ == "__main__":
     builder = ConanMultiPackager()
-    builder.password = getenv("CONAN_PASSWORD")
     builder.add_common_builds(shared_option_name="libpcap:shared", pure_c=True)
     for settings, options, env_vars, build_requires in reversed(builder.builds):
         if platform.system() == "Linux":

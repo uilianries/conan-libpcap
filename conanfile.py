@@ -1,17 +1,9 @@
 """Conan.io recipe for pcap library
 """
-from os import unlink
-from os.path import join
+from os import path
 from tempfile import mkdtemp
-from platform import machine
-from conans import ConanFile
+from conans import AutoToolsBuildEnvironment, tools, ConanFile
 from conans.errors import ConanException
-from conans import AutoToolsBuildEnvironment
-from conans.tools import SystemPackageTool
-from conans.tools import download
-from conans.tools import unzip
-from conans.tools import chdir
-from conans.tools import check_md5
 
 
 class LibPcapConan(ConanFile):
@@ -39,11 +31,11 @@ class LibPcapConan(ConanFile):
 
     def build_requirements(self):
         if self.settings.os == "Linux":
-            package_tool = SystemPackageTool()
+            package_tool = tools.SystemPackageTool()
             package_tool.install(packages="bison flex")
 
     def _is_amd64_to_i386(self):
-        return self.settings.arch == "x86" and machine() == "x86_64"
+        return self.settings.arch == "x86" and tools.detected_architecture() == "x86_64"
 
     def system_requirements(self):
         if self.settings.os == "Linux":
@@ -58,24 +50,19 @@ class LibPcapConan(ConanFile):
             if self.options.enable_packet_ring:
                 package_list.append("libnl-genl-3-dev%s" % arch)
             if package_list:
-                package_tool = SystemPackageTool()
+                package_tool = tools.SystemPackageTool()
                 package_tool.install(packages=" ".join(package_list))
+
+    def source(self):
+        tools.get("https://github.com/the-tcpdump-group/libpcap/archive/libpcap-%s.tar.gz" % self.version)
 
     def configure(self):
         if self.settings.os == "Windows":
             raise ConanException("For Windows use WinPcap/4.1.2@RoliSoft/stable")
         del self.settings.compiler.libcxx
 
-    def source(self):
-        tar_name = "%s-%s.tar.gz" % (self.name, self.version)
-        url = "https://github.com/the-tcpdump-group/libpcap/archive/%s" % tar_name
-        download(url, tar_name)
-        check_md5(tar_name, "4a70f59c943b21340deca4affe63ea4c")
-        unzip(tar_name)
-        unlink(tar_name)
-
     def build(self):
-        with chdir(self.libpcap_dir):
+        with tools.chdir(self.libpcap_dir):
             env_build = AutoToolsBuildEnvironment(self)
             configure_args = ["--prefix=%s" % self.install_dir]
             configure_args.append("--enable-shared" if self.options.shared else "--disable-shared")
@@ -94,10 +81,12 @@ class LibPcapConan(ConanFile):
 
     def package(self):
         self.copy("LICENSE", src=self.libpcap_dir, dst=".")
-        self.copy(pattern="*.h", dst="include", src=join(self.install_dir, "include"))
-        self.copy(pattern="*.so*", dst="lib", src=join(self.install_dir, "lib"), keep_path=False)
-        self.copy(pattern="*.dylib", dst="lib", src=join(self.install_dir, "lib"), keep_path=False)
-        self.copy(pattern="*.a", dst="lib", src=join(self.install_dir, "lib"), keep_path=False)
+        self.copy(pattern="*.h", dst="include", src=path.join(self.install_dir, "include"))
+        if self.options.shared:
+            self.copy(pattern="*.so*", dst="lib", src=path.join(self.install_dir, "lib"), keep_path=False)
+            self.copy(pattern="*.dylib", dst="lib", src=path.join(self.install_dir, "lib"), keep_path=False)
+        else:
+            self.copy(pattern="*.a", dst="lib", src=path.join(self.install_dir, "lib"), keep_path=False)
 
     def package_info(self):
         self.cpp_info.libs = ["pcap"]
