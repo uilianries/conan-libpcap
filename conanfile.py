@@ -34,8 +34,8 @@ class LibPcapConan(ConanFile):
 
     def build_requirements(self):
         if self.settings.os == "Linux":
-            package_tool = tools.SystemPackageTool()
-            package_tool.install(packages="bison flex")
+            self.build_requires("bison/3.0.4@uilianries/stable")
+            self.build_requires("flex/2.6.4@uilianries/stable")
 
     def _is_amd64_to_i386(self):
         return self.settings.arch == "x86" and tools.detected_architecture() == "x86_64"
