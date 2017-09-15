@@ -56,7 +56,7 @@ class LibPcapConan(ConanFile):
 
     def source(self):
         tools.get("https://github.com/the-tcpdump-group/libpcap/archive/libpcap-%s.tar.gz" % self.version)
-        if self.settings.os == "Windows":
+        if self.settings.os == "Windows":        
             url = "http://www.winpcap.org/install/bin/WpdPack_4_1_2.zip"
             filename = os.path.basename(url)
             tools.download(url, filename, verify=False)
@@ -64,52 +64,57 @@ class LibPcapConan(ConanFile):
             tools.unzip(filename)
             os.unlink(filename)
 
+    #def config_options(self):
+    #    if self.settings == "Windows":
+    #        del self.options.shared
+
     def configure(self):
         del self.settings.compiler.libcxx
-
-    def _build_cmake(self):
-        cmake = CMake(self)
-        cmake.definitions["PACKET_DLL_DIR"] = os.path.join(self.build_folder, "WpdPack")
-        cmake.definitions["CMAKE_INSTALL_PREFIX"] = self.install_dir
-        cmake.configure()
-        cmake.build()
-        cmake.install()
-
-    def _build_makefile(self):
-        with tools.chdir(self.libpcap_dir):
-            env_build = AutoToolsBuildEnvironment(self)
-            configure_args = ["--prefix=%s" % self.install_dir]
-            configure_args.append("--enable-shared" if self.options.shared else "--disable-shared")
-            configure_args.append("--disable-universal" if not self.options.disable_universal else "")
-            configure_args.append("--enable-dbus" if self.options.enable_dbus else "--disable-dbus")
-            configure_args.append("--enable-bluetooth" if self.options.enable_bluetooth else "--disable-bluetooth")
-            configure_args.append("--enable-usb" if self.options.enable_usb else "--disable-usb")
-            configure_args.append("--enable-packet-ring" if self.options.enable_packet_ring else "--disable-packet-ring")
-            # Cross compile x86_64 to x86 needs --with-pcap
-            if self.settings.os == "Macos" and self.settings.arch == "x86":
-                configure_args.append("--with-pcap=null")
-            env_build.fpic = True
-            env_build.configure(args=configure_args)
-            env_build.make(args=["all"])
-            env_build.make(args=["install"])
+        if self.settings == "Windows":
+            self.options.shared = False
 
     def build(self):
-        if self.settings.os == "Windows":
-            self._build_cmake()
-        else:
-            self._build_makefile()
+        if self.settings.os != "Windows":
+            with tools.chdir(self.libpcap_dir):
+                env_build = AutoToolsBuildEnvironment(self)
+                configure_args = ["--prefix=%s" % self.install_dir]
+                configure_args.append("--enable-shared" if self.options.shared else "--disable-shared")
+                configure_args.append("--disable-universal" if not self.options.disable_universal else "")
+                configure_args.append("--enable-dbus" if self.options.enable_dbus else "--disable-dbus")
+                configure_args.append("--enable-bluetooth" if self.options.enable_bluetooth else "--disable-bluetooth")
+                configure_args.append("--enable-usb" if self.options.enable_usb else "--disable-usb")
+                configure_args.append("--enable-packet-ring" if self.options.enable_packet_ring else "--disable-packet-ring")
+                # Cross compile x86_64 to x86 needs --with-pcap
+                if self.settings.os == "Macos" and self.settings.arch == "x86":
+                    configure_args.append("--with-pcap=null")
+                env_build.fpic = True
+                env_build.configure(args=configure_args)
+                env_build.make(args=["all"])
+                env_build.make(args=["install"])
 
     def package(self):
         self.copy("LICENSE", src=self.libpcap_dir, dst=".")
-        self.copy(pattern="*.h", dst="include", src=os.path.join(self.install_dir, "include"))
-        if self.options.shared:
-            self.copy(pattern="*.so*", dst="lib", src=os.path.join(self.install_dir, "lib"), keep_path=False)
-            self.copy(pattern="*.dylib", dst="lib", src=os.path.join(self.install_dir, "lib"), keep_path=False)
+        if self.settings.os != "Windows":
+            self.copy(pattern="*.h", dst="include", src=os.path.join(self.install_dir, "include"))
+            if self.options.shared:
+                self.copy(pattern="*.so*", dst="lib", src=os.path.join(self.install_dir, "lib"), keep_path=False)
+                self.copy(pattern="*.dylib", dst="lib", src=os.path.join(self.install_dir, "lib"), keep_path=False)
+            else:
+                self.copy(pattern="*.a", dst="lib", src=os.path.join(self.install_dir, "lib"), keep_path=False)
         else:
-            self.copy(pattern="*.a", dst="lib", src=os.path.join(self.install_dir, "lib"), keep_path=False)
+            wpcap_dir = os.path.join(self.build_folder, "WpdPack")
+            self.copy(pattern="*.h", dst="include", src=os.path.join(wpcap_dir, "Include"))
+            if self.settings.compiler != "Visual Studio":
+                self.copy(pattern="*.a", dst="lib", src=os.path.join(wpcap_dir, "Lib"), keep_path=False)
+            else:
+                if self.settings.arch == "x86_64":
+                    self.copy(pattern="*.lib", dst="lib", src=os.path.join(wpcap_dir, "Lib", "x64"), keep_path=False)
+                else:
+                    self.copy(pattern="wpcap.lib", dst="lib", src=os.path.join(wpcap_dir, "Lib"), keep_path=False)            
+                    self.copy(pattern="Packet.lib", dst="lib", src=os.path.join(wpcap_dir, "Lib"), keep_path=False)
 
     def package_info(self):
-        self.cpp_info.libs = ["pcap"]
+        self.cpp_info.libs = self.collect_libs()
         if self.settings.os == "Linux":
             if self.options.enable_dbus:
                 self.cpp_info.libs.append("dbus-glib-1")
