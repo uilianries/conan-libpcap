@@ -1,9 +1,8 @@
 """Conan.io recipe for pcap library
 """
-from os import path
+import os
 from tempfile import mkdtemp
 from conans import AutoToolsBuildEnvironment, tools, ConanFile
-from conans.errors import ConanException
 
 
 class LibPcapConan(ConanFile):
@@ -29,6 +28,10 @@ class LibPcapConan(ConanFile):
     libpcap_dir = "%s-%s-%s" % (name, name, version)
     install_dir = mkdtemp(suffix=name)
 
+    def requirements(self):
+        if self.options.enable_usb:
+            self.requires("libusb/1.0.21@uilianries/stable")
+
     def build_requirements(self):
         if self.settings.os == "Linux":
             package_tool = tools.SystemPackageTool()
@@ -45,8 +48,6 @@ class LibPcapConan(ConanFile):
                 package_list.extend(["libdbus-glib-1-dev%s" % arch, "libdbus-1-dev"])
             if self.options.enable_bluetooth:
                 package_list.append("libbluetooth-dev%s" % arch)
-            if self.options.enable_usb:
-                package_list.append("libusb-1.0-0-dev%s" % arch)
             if self.options.enable_packet_ring:
                 package_list.append("libnl-genl-3-dev%s" % arch)
             if package_list:
@@ -58,7 +59,7 @@ class LibPcapConan(ConanFile):
 
     def configure(self):
         if self.settings.os == "Windows":
-            raise ConanException("For Windows use WinPcap/4.1.2@RoliSoft/stable")
+            raise Exception("libpcap is not supported on Windows. You are looking for winpcap/uilianries@4.1.3/stable")
         del self.settings.compiler.libcxx
 
     def build(self):
@@ -81,23 +82,21 @@ class LibPcapConan(ConanFile):
 
     def package(self):
         self.copy("LICENSE", src=self.libpcap_dir, dst=".")
-        self.copy(pattern="*.h", dst="include", src=path.join(self.install_dir, "include"))
+        self.copy(pattern="*.h", dst="include", src=os.path.join(self.install_dir, "include"))
         if self.options.shared:
-            self.copy(pattern="*.so*", dst="lib", src=path.join(self.install_dir, "lib"), keep_path=False)
-            self.copy(pattern="*.dylib", dst="lib", src=path.join(self.install_dir, "lib"), keep_path=False)
+            self.copy(pattern="*.so*", dst="lib", src=os.path.join(self.install_dir, "lib"), keep_path=False)
+            self.copy(pattern="*.dylib", dst="lib", src=os.path.join(self.install_dir, "lib"), keep_path=False)
         else:
-            self.copy(pattern="*.a", dst="lib", src=path.join(self.install_dir, "lib"), keep_path=False)
+            self.copy(pattern="*.a", dst="lib", src=os.path.join(self.install_dir, "lib"), keep_path=False)
 
     def package_info(self):
-        self.cpp_info.libs = ["pcap"]
+        self.cpp_info.libs = self.collect_libs()
         if self.settings.os == "Linux":
             if self.options.enable_dbus:
                 self.cpp_info.libs.append("dbus-glib-1")
                 self.cpp_info.libs.append("dbus-1")
             if self.options.enable_bluetooth:
                 self.cpp_info.libs.append("bluetooth")
-            if self.options.enable_usb:
-                self.cpp_info.libs.append("usb-1.0")
             if self.options.enable_packet_ring:
                 self.cpp_info.libs.append("nl-genl-3")
                 self.cpp_info.libs.append("nl-3")
