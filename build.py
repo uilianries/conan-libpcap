@@ -7,13 +7,16 @@ from conan.builds_generator import BuildConf
 
 if __name__ == "__main__":
     builder = ConanMultiPackager()
-    builder.add_common_builds(shared_option_name="libpcap:shared", pure_c=True)
-    for settings, options, env_vars, build_requires in reversed(builder.builds):
-        if platform.system() == "Linux":
-            false_options = copy(options)
-            false_options["libpcap:enable_usb"] = True
-            false_options["libpcap:enable_bluetooth"] = True
-            false_options["libpcap:enable_dbus"] = True
-            false_options["libpcap:enable_packet_ring"] = True
-            builder.builds.append(BuildConf(settings, false_options, env_vars, build_requires))
+    if platform.system() != "Windows":
+        builder.add_common_builds(shared_option_name="libpcap:shared", pure_c=True)
+        for settings, options, env_vars, build_requires in reversed(builder.builds):
+            if platform.system() == "Linux":
+                false_options = copy(options)
+                false_options["libpcap:enable_usb"] = True
+                false_options["libpcap:enable_bluetooth"] = True
+                false_options["libpcap:enable_dbus"] = True
+                false_options["libpcap:enable_packet_ring"] = True
+                builder.builds.append(BuildConf(settings, false_options, env_vars, build_requires))
+    else:
+        builder.add_common_builds(pure_c=True)
     builder.run()

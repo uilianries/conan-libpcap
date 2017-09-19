@@ -2,7 +2,7 @@
 """
 import os
 from tempfile import mkdtemp
-from conans import AutoToolsBuildEnvironment, tools, ConanFile, CMake
+from conans import AutoToolsBuildEnvironment, tools, ConanFile
 
 
 class LibPcapConan(ConanFile):
@@ -37,6 +37,10 @@ class LibPcapConan(ConanFile):
             self.build_requires("bison/3.0.4@uilianries/stable")
             self.build_requires("flex/2.6.4@uilianries/stable")
 
+    def config_options(self):
+        if self.settings.os == "Windows":
+            del self.options.shared
+
     def _is_amd64_to_i386(self):
         return self.settings.arch == "x86" and tools.detected_architecture() == "x86_64"
 
@@ -55,23 +59,15 @@ class LibPcapConan(ConanFile):
                 package_tool.install(packages=" ".join(package_list))
 
     def source(self):
-        tools.get("https://github.com/the-tcpdump-group/libpcap/archive/libpcap-%s.tar.gz" % self.version)
-        if self.settings.os == "Windows":        
-            url = "http://www.winpcap.org/install/bin/WpdPack_4_1_2.zip"
-            filename = os.path.basename(url)
-            tools.download(url, filename, verify=False)
-            tools.check_sha256(filename, "ea799cf2f26e4afb1892938070fd2b1ca37ce5cf75fec4349247df12b784edbd")
-            tools.unzip(filename)
-            os.unlink(filename)
-
-    #def config_options(self):
-    #    if self.settings == "Windows":
-    #        del self.options.shared
+        if self.settings.os != "Windows":
+            tools.get("https://github.com/the-tcpdump-group/libpcap/archive/libpcap-%s.tar.gz" % self.version)
+        else:
+            # Get Winpcap 4.1.3
+            url = "https://github.com/patmarion/winpcap"
+            self.run("git clone %s %s" % (url, self.libpcap_dir))
 
     def configure(self):
         del self.settings.compiler.libcxx
-        if self.settings == "Windows":
-            self.options.shared = False
 
     def build(self):
         if self.settings.os != "Windows":
@@ -102,16 +98,16 @@ class LibPcapConan(ConanFile):
             else:
                 self.copy(pattern="*.a", dst="lib", src=os.path.join(self.install_dir, "lib"), keep_path=False)
         else:
-            wpcap_dir = os.path.join(self.build_folder, "WpdPack")
+            wpcap_dir = os.path.join(self.build_folder, self.libpcap_dir)
             self.copy(pattern="*.h", dst="include", src=os.path.join(wpcap_dir, "Include"))
-            if self.settings.compiler != "Visual Studio":
-                self.copy(pattern="*.a", dst="lib", src=os.path.join(wpcap_dir, "Lib"), keep_path=False)
+            if self.settings.arch == "x86_64":
+                self.copy(pattern="*.dll", dst="bin", src=os.path.join(wpcap_dir, "Lib", "x64"), keep_path=False)
+                self.copy(pattern="*.lib", dst="lib", src=os.path.join(wpcap_dir, "Lib", "x64"), keep_path=False)
             else:
-                if self.settings.arch == "x86_64":
-                    self.copy(pattern="*.lib", dst="lib", src=os.path.join(wpcap_dir, "Lib", "x64"), keep_path=False)
-                else:
-                    self.copy(pattern="wpcap.lib", dst="lib", src=os.path.join(wpcap_dir, "Lib"), keep_path=False)            
-                    self.copy(pattern="Packet.lib", dst="lib", src=os.path.join(wpcap_dir, "Lib"), keep_path=False)
+                self.copy(pattern="wpcap.dll", dst="bin", src=os.path.join(wpcap_dir, "Lib"), keep_path=False)
+                self.copy(pattern="Packet.dll", dst="bin", src=os.path.join(wpcap_dir, "Lib"), keep_path=False)
+                self.copy(pattern="wpcap.lib", dst="lib", src=os.path.join(wpcap_dir, "Lib"), keep_path=False)
+                self.copy(pattern="Packet.lib", dst="lib", src=os.path.join(wpcap_dir, "Lib"), keep_path=False)
 
     def package_info(self):
         self.cpp_info.libs = self.collect_libs()

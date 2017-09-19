@@ -22,6 +22,7 @@ class TestPcapConan(ConanFile):
         cmake.build()
 
     def imports(self):
+        self.copy(pattern="*.dll", dst="bin", src="bin")
         self.copy(pattern="*.so*", dst="bin", src="lib")
 
     def test(self):
