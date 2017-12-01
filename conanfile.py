@@ -88,6 +88,9 @@ class LibPcapConan(ConanFile):
             # Cross compile x86_64 to x86 needs --with-pcap
             if self.settings.os == "Macos" and self.settings.arch == "x86":
                 configure_args.append("--with-pcap=null")
+            elif "arm" in self.settings.arch and self.settings.os == "Linux":
+                configure_args.append("--with-pcap=linux")
+                configure_args.append("--host=arm-linux")
             env_build.fpic = True
             env_build.configure(args=configure_args)
             env_build.make(args=["all"])
