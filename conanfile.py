@@ -1,8 +1,6 @@
 """Conan.io recipe for pcap library
 """
-import os
-from tempfile import mkdtemp
-from conans import AutoToolsBuildEnvironment, tools, ConanFile, CMake
+from conans import AutoToolsBuildEnvironment, tools, ConanFile
 
 
 class LibPcapConan(ConanFile):
@@ -20,22 +18,23 @@ class LibPcapConan(ConanFile):
         "enable_packet_ring": [True, False],
         "disable_universal": [True, False]
     }
-    url = "http://github.com/uilianries/conan-libpcap"
-    author = "Uilian Ries <uilianries@gmail.com>"
-    description = "An API for capturing network traffic"
+    url = "http://github.com/bincrafters/conan-libpcap"
+    homepage = "https://github.com/the-tcpdump-group/libpcap"
+    author = "Bincrafters <bincrafters@gmail.com>"
+    description = "libpcap is an API for capturing network traffic"
     license = "https://github.com/the-tcpdump-group/libpcap/blob/master/LICENSE"
-    default_options = "shared=True", "enable_dbus=False", "enable_bluetooth=False", "enable_usb=False", "enable_packet_ring=False", "disable_universal=False"
+    default_options = "shared=False", "enable_dbus=False", "enable_bluetooth=False", "enable_usb=False", "enable_packet_ring=False", "disable_universal=False"
+    exports = ["LICENSE.md"]
     libpcap_dir = "%s-%s-%s" % (name, name, version)
-    install_dir = mkdtemp(suffix=name)
 
     def requirements(self):
         if self.options.enable_usb:
-            self.requires("libusb/1.0.21@uilianries/stable")
+            self.requires("libusb/1.0.21@bincrafters/stable")
 
     def build_requirements(self):
         if self.settings.os == "Linux":
-            self.build_requires("bison/3.0.4@uilianries/stable")
-            self.build_requires("flex/2.6.4@uilianries/stable")
+            self.build_requires("bison/3.0.4@bincrafters/stable")
+            self.build_requires("flex/2.6.4@bincrafters/stable")
 
     def _is_amd64_to_i386(self):
         return self.settings.arch == "x86" and tools.detected_architecture() == "x86_64"
@@ -56,35 +55,24 @@ class LibPcapConan(ConanFile):
 
     def source(self):
         tools.get("https://github.com/the-tcpdump-group/libpcap/archive/libpcap-%s.tar.gz" % self.version)
-        if self.settings.os == "Windows":
-            url = "http://www.winpcap.org/install/bin/WpdPack_4_1_2.zip"
-            filename = os.path.basename(url)
-            tools.download(url, filename, verify=False)
-            tools.check_sha256(filename, "ea799cf2f26e4afb1892938070fd2b1ca37ce5cf75fec4349247df12b784edbd")
-            tools.unzip(filename)
-            os.unlink(filename)
 
     def configure(self):
         del self.settings.compiler.libcxx
+        if self.settings.os == "Windows":
+            raise Exception("For Windows use winpcap/4.1.2@bincrafters/stable")
 
-    def _build_cmake(self):
-        cmake = CMake(self)
-        cmake.definitions["PACKET_DLL_DIR"] = os.path.join(self.build_folder, "WpdPack")
-        cmake.definitions["CMAKE_INSTALL_PREFIX"] = self.install_dir
-        cmake.configure()
-        cmake.build()
-        cmake.install()
-
-    def _build_makefile(self):
+    def build(self):
         with tools.chdir(self.libpcap_dir):
             env_build = AutoToolsBuildEnvironment(self)
-            configure_args = ["--prefix=%s" % self.install_dir]
+            configure_args = ["--prefix=%s" % self.package_folder]
             configure_args.append("--enable-shared" if self.options.shared else "--disable-shared")
             configure_args.append("--disable-universal" if not self.options.disable_universal else "")
             configure_args.append("--enable-dbus" if self.options.enable_dbus else "--disable-dbus")
             configure_args.append("--enable-bluetooth" if self.options.enable_bluetooth else "--disable-bluetooth")
             configure_args.append("--enable-usb" if self.options.enable_usb else "--disable-usb")
             configure_args.append("--enable-packet-ring" if self.options.enable_packet_ring else "--disable-packet-ring")
+            if not self.options.enable_packet_ring:
+                configure_args.append("--without-libnl")
             # Cross compile x86_64 to x86 needs --with-pcap
             if self.settings.os == "Macos" and self.settings.arch == "x86":
                 configure_args.append("--with-pcap=null")
@@ -96,23 +84,11 @@ class LibPcapConan(ConanFile):
             env_build.make(args=["all"])
             env_build.make(args=["install"])
 
-    def build(self):
-        if self.settings.os == "Windows":
-            self._build_cmake()
-        else:
-            self._build_makefile()
-
     def package(self):
-        self.copy("LICENSE", src=self.libpcap_dir, dst=".")
-        self.copy(pattern="*.h", dst="include", src=os.path.join(self.install_dir, "include"))
-        if self.options.shared:
-            self.copy(pattern="*.so*", dst="lib", src=os.path.join(self.install_dir, "lib"), keep_path=False)
-            self.copy(pattern="*.dylib", dst="lib", src=os.path.join(self.install_dir, "lib"), keep_path=False)
-        else:
-            self.copy(pattern="*.a", dst="lib", src=os.path.join(self.install_dir, "lib"), keep_path=False)
+        self.copy("LICENSE", src=self.libpcap_dir, dst="licenses")
 
     def package_info(self):
-        self.cpp_info.libs = ["pcap"]
+        self.cpp_info.libs = tools.collect_libs(self)
         if self.settings.os == "Linux":
             if self.options.enable_dbus:
                 self.cpp_info.libs.append("dbus-glib-1")

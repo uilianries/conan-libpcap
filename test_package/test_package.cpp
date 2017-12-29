@@ -2,11 +2,11 @@
  * \file
  * \brief List network card and collect information
  *
- * Copyright 2017 Uilian Ries <uilianries@gmail.com>
+ * Copyright 2017 Bincrafters <bincrafters@gmail.com>
  */
-#include <assert.h>
-#include <stdlib.h>
-#include <pcap.h>
+#include <cstdlib>
+
+#include "pcap.h"
 
 int main(int argc, char **argv)
 {
@@ -20,7 +20,11 @@ int main(int argc, char **argv)
     if (dev != NULL) {
         if (pcap_lookupnet(dev, &netp, &maskp, errbuf) == -1) {
             fprintf(stderr, "Couldn't get netmask for device %s: %s\n", dev, errbuf);
+        } else {
+            fprintf(stdout, "Lookup success on device %s\n", dev);
         }
+    } else {
+        fprintf(stderr, "Couldn't lookup devices: %s\n", errbuf);
     }
 
     return EXIT_SUCCESS;
