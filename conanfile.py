@@ -73,11 +73,10 @@ class LibPcapConan(ConanFile):
             configure_args.append("--enable-packet-ring" if self.options.enable_packet_ring else "--disable-packet-ring")
             if not self.options.enable_packet_ring:
                 configure_args.append("--without-libnl")
-            # Cross compile x86_64 to x86 needs --with-pcap
-            if self.settings.os == "Macos" and self.settings.arch == "x86":
-                configure_args.append("--with-pcap=null")
+            if tools.cross_building(self.settings):
+                target_os = "linux" if self.settings.os == "Linux" else "null"
+                configure_args.append("--with-pcap=%s" % target_os)
             elif "arm" in self.settings.arch and self.settings.os == "Linux":
-                configure_args.append("--with-pcap=linux")
                 configure_args.append("--host=arm-linux")
             env_build.fpic = True
             env_build.configure(args=configure_args)
