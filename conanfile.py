@@ -34,7 +34,7 @@ class LibPcapConan(ConanFile):
     def build_requirements(self):
         if self.settings.os == "Linux":
             if not tools.which("bison"):
-                self.build_requires("bison_installer/3.0.4@bincrafters/stable")
+                self.build_requires("bison_installer/3.3.2@bincrafters/stable")
             if not tools.which("flex"):
                 self.build_requires("flex_installer/2.6.4@bincrafters/stable")
 
